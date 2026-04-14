@@ -5,9 +5,6 @@ import StudentCard from '../components/StudentCard'
 
 const MAX_PHOTOS = 5
 
-import { deleteStudent, getStudents } from '../api'
-import StudentCard from '../components/StudentCard'
-
 export default function Students() {
   const [students, setStudents] = useState([])
   const [search, setSearch] = useState('')
@@ -132,8 +129,6 @@ export default function Students() {
           </div>
         </div>
       )}
-        {filtered.map((student) => <StudentCard key={student.id} student={student} onDelete={onDelete} />)}
-      </div>
     </div>
   )
 }

@@ -22,9 +22,6 @@ from database import (
     update_student_photos,
 )
 from face_utils import average_encodings, detect_faces_and_match, encode_face
-    get_students,
-)
-from face_utils import detect_faces_and_match, extract_single_face_encoding
 
 load_dotenv()
 
@@ -36,8 +33,7 @@ for folder in [UPLOAD_FOLDER, STUDENT_PHOTO_FOLDER]:
     os.makedirs(folder, exist_ok=True)
 
 app = Flask(__name__, static_url_path="/static", static_folder="static")
-CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}})
-
+CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174"]}})
 
 def _collect_photos_from_request():
     photos = request.files.getlist("photos[]")
@@ -75,18 +71,12 @@ def validate_student_photo():
     if not photo:
         return jsonify({"success": False, "message": "Photo is required"}), 400
 
-    temp_name = secure_filename(f"validate_{uuid.uuid4().hex}_{photo.filename}")
-    temp_path = os.path.join(STUDENT_PHOTO_FOLDER, temp_name)
-    photo.save(temp_path)
-
-    try:
-        encode_face(temp_path)
     filename = secure_filename(f"validate_{uuid.uuid4().hex}_{photo.filename}")
     temp_path = os.path.join(STUDENT_PHOTO_FOLDER, filename)
     photo.save(temp_path)
 
     try:
-        extract_single_face_encoding(temp_path)
+        encode_face(temp_path)
         return jsonify({"success": True, "message": "Exactly one face detected"})
     except ValueError as exc:
         return jsonify({"success": False, "message": str(exc)}), 400
@@ -193,30 +183,6 @@ def add_student_photos(student_id):
         return jsonify({"success": False, "message": str(exc)}), 400
     except Exception as exc:
         return jsonify({"success": False, "message": f"Failed to add photos: {str(exc)}"}), 500
-
-
-    photo = request.files.get("photo")
-
-    if not all([name, roll_number, photo]):
-        return jsonify({"success": False, "message": "name, roll_number and photo are required"}), 400
-
-    filename = secure_filename(f"{uuid.uuid4().hex}_{photo.filename}")
-    photo_abs_path = os.path.join(STUDENT_PHOTO_FOLDER, filename)
-    photo_rel_path = f"student_photos/{filename}"
-    photo.save(photo_abs_path)
-
-    try:
-        face_encoding = extract_single_face_encoding(photo_abs_path)
-        student_id = create_student(name, roll_number, photo_rel_path, face_encoding)
-        return jsonify({"success": True, "student_id": student_id, "message": "Student registered successfully"}), 201
-    except ValueError as exc:
-        if os.path.exists(photo_abs_path):
-            os.remove(photo_abs_path)
-        return jsonify({"success": False, "message": str(exc)}), 400
-    except Exception as exc:
-        if os.path.exists(photo_abs_path):
-            os.remove(photo_abs_path)
-        return jsonify({"success": False, "message": f"Registration failed: {str(exc)}"}), 500
 
 
 @app.route("/api/students", methods=["GET"])

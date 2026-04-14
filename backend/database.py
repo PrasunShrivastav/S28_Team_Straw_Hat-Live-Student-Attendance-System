@@ -37,7 +37,6 @@ def create_student(
     photo_count: int,
     student_id: ObjectId | None = None,
 ) -> str:
-def create_student(name: str, roll_number: str, photo_path: str, face_encoding: list[float]) -> str:
     existing = students_col.find_one({"roll_number": roll_number})
     if existing:
         raise ValueError("Roll number already exists")
@@ -55,15 +54,6 @@ def create_student(name: str, roll_number: str, photo_path: str, face_encoding: 
         payload["_id"] = student_id
 
     result = students_col.insert_one(payload)
-    result = students_col.insert_one(
-        {
-            "name": name,
-            "roll_number": roll_number,
-            "photo_path": photo_path,
-            "face_encoding": face_encoding,
-            "registered_at": datetime.now(timezone.utc),
-        }
-    )
     return str(result.inserted_id)
 
 
@@ -115,9 +105,6 @@ def create_attendance_record(record: dict) -> str:
 
 def get_sessions() -> list[dict]:
     sessions = list(attendance_col.find({}).sort("timestamp", -1))
-    sessions = list(
-        attendance_col.find({}).sort("timestamp", -1)
-    )
     for session in sessions:
         session["id"] = str(session["_id"])
     return sessions

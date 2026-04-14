@@ -9,7 +9,6 @@ MATCH_TOLERANCE = 0.5
 
 def encode_face(image_path: str) -> np.ndarray:
     """Return exactly one 128-d face encoding for a photo."""
-def extract_single_face_encoding(image_path: str) -> list[float]:
     image = face_recognition.load_image_file(image_path)
     face_locations = face_recognition.face_locations(image, model="hog")
 
@@ -32,7 +31,6 @@ def average_encodings(list_of_encodings: list[np.ndarray]) -> np.ndarray:
 def extract_single_face_encoding(image_path: str) -> list[float]:
     """Backward-compatible helper used by older call sites."""
     return encode_face(image_path).tolist()
-    return encoding.tolist()
 
 
 def detect_faces_and_match(group_photo_path: str, known_students: list[dict], output_folder: str) -> tuple[list[dict], str]:
