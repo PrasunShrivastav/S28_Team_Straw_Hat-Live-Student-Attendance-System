@@ -4,3 +4,6 @@ __pycache__/
 static/uploads/
 static/student_photos/
 .DS_Store
+.env
+backend/.env
+frontend/node_modules/

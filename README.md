@@ -1,144 +1,98 @@
-# 🎓 Face Recognition Attendance Monitoring System
+# Face Recognition Attendance Monitoring System
 
-An AI-powered attendance system that detects faces in a class group photo, matches them against a registered student database, and automatically marks attendance.
+A full-stack attendance system using Flask, MongoDB, and React. Register student faces, upload a group photo, and automatically mark present/absent with unknown face detection.
 
-![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
-![Flask](https://img.shields.io/badge/Flask-3.0-000000?logo=flask)
-![OpenCV](https://img.shields.io/badge/OpenCV-4.9-5C3EE8?logo=opencv)
-![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite)
+## Tech Stack
 
----
+- Backend: Python 3.10+, Flask, flask-cors, face_recognition, OpenCV, pymongo, Pillow, python-dotenv
+- Frontend: React 18 + Vite, Tailwind CSS v3, React Router v6, Axios, React Hot Toast, Lucide React
+- Database: MongoDB (`students`, `attendance_records`)
 
-## ✨ Features
+## Project Structure
 
-- **Student Registration** — Upload a student's name and photo; the system extracts and stores their face encoding
-- **Automatic Attendance** — Upload a group photo and the system detects all faces, matches them to registered students, and marks present/absent
-- **Annotated Output** — Bounding boxes drawn on the group photo: 🟩 Green = recognized, 🟥 Red = unknown
-- **Attendance Report** — Summary stats + detailed table with export to CSV
-- **Dark-themed UI** — Modern glassmorphism design with Bootstrap 5
-
----
-
-## 🛠️ Prerequisites
-
-- **Python 3.10+**
-- **CMake** — Required to build `dlib` (the face recognition engine)
-  - Windows: `choco install cmake` or download from [cmake.org](https://cmake.org/download/)
-  - macOS: `brew install cmake`
-  - Linux: `sudo apt install cmake`
-- **Visual Studio Build Tools** (Windows only) — C++ compiler for dlib
-  - Download: [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
-  - Select "Desktop development with C++" workload
-
----
-
-## 🚀 Installation
-
-1. **Clone or navigate to the project directory:**
-   ```bash
-   cd "Attendance System"
-   ```
-
-2. **Create a virtual environment (recommended):**
-   ```bash
-   python -m venv venv
-
-   # Windows
-   venv\Scripts\activate
-
-   # macOS/Linux
-   source venv/bin/activate
-   ```
-
-3. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-   > ⚠️ **Note:** Installing `dlib` may take several minutes as it compiles from source. Ensure CMake and a C++ compiler are installed.
-
-4. **Run the application:**
-   ```bash
-   python app.py
-   ```
-
-5. **Open your browser:**
-   ```
-   http://127.0.0.1:5000
-   ```
-
----
-
-## 📖 Usage Guide
-
-### Step 1: Register Students
-1. Click **"Register"** in the navbar
-2. Enter the student's full name
-3. Upload a clear, front-facing photo with **exactly one** face visible
-4. Click **"Register Student"**
-5. Repeat for all students in the class
-
-### Step 2: Take Attendance
-1. Go to **"Take Attendance"** (home page)
-2. Upload a group/class photo
-3. Click **"Detect Faces & Mark Attendance"**
-4. Wait for the AI to process the image
-
-### Step 3: View Results
-- The results page shows:
-  - **Annotated image** with bounding boxes around detected faces
-  - **Attendance table** with Present/Absent status for each student
-  - **Summary stats** — total, present, absent, unknown faces
-- Click **"Export CSV"** to download the report
-- Click **"Take New Attendance"** to start a new session
-
----
-
-## 📁 Project Structure
-
-```
-attendance_system/
-├── app.py              # Main Flask application
-├── face_utils.py       # Face detection & recognition helpers
-├── database.py         # SQLite DB setup and queries
-├── requirements.txt    # Python dependencies
-├── README.md           # This file
-├── templates/
-│   ├── base.html       # Base layout with navbar
-│   ├── index.html      # Home / take attendance
-│   ├── register.html   # Register new student
-│   ├── students.html   # List all students
-│   └── results.html    # Attendance results
-├── static/
-│   ├── uploads/        # Uploaded group photos
-│   └── student_photos/ # Individual student photos
-└── attendance.db       # SQLite database (auto-created)
+```text
+attendance-system/
+├── backend/
+│   ├── app.py
+│   ├── database.py
+│   ├── face_utils.py
+│   ├── requirements.txt
+│   ├── .env.example
+│   └── static/
+│       ├── uploads/
+│       └── student_photos/
+└── frontend/
+    ├── index.html
+    ├── vite.config.js
+    ├── tailwind.config.js
+    ├── postcss.config.js
+    ├── package.json
+    └── src/
+        ├── main.jsx
+        ├── App.jsx
+        ├── api/index.js
+        ├── components/
+        └── pages/
 ```
 
----
+## Prerequisites
 
-## ⚙️ Configuration
+- Python 3.10+
+- Node.js 18+
+- MongoDB running locally or MongoDB Atlas URI
+- Build tools needed by `dlib/face_recognition` (CMake + compiler)
 
-| Setting | Default | Location |
-|---------|---------|----------|
-| Match tolerance | `0.5` | `face_utils.py` → `MATCH_TOLERANCE` |
-| Max upload size | `16 MB` | `app.py` → `MAX_CONTENT_LENGTH` |
-| Detection model | `hog` | `face_utils.py` (change to `cnn` for GPU) |
-| Server port | `5000` | `app.py` → `app.run(port=...)` |
+## Backend Setup
 
----
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env
+```
 
-## 🔧 Troubleshooting
+Edit `.env`:
 
-| Issue | Solution |
-|-------|----------|
-| `dlib` won't install | Ensure CMake and C++ build tools are installed |
-| No faces detected | Use a higher resolution, well-lit photo |
-| Wrong matches | Lower `MATCH_TOLERANCE` to `0.4` for stricter matching |
-| Slow processing | Use smaller images or switch to `hog` model |
+```env
+MONGO_URI=mongodb://localhost:27017
+DB_NAME=attendance_system
+UPLOAD_FOLDER=static/uploads
+STUDENT_PHOTO_FOLDER=static/student_photos
+```
 
----
+Run backend:
 
-## 📝 License
+```bash
+python app.py
+```
 
-This project is for educational purposes.
+Backend URL: `http://localhost:5000`
+
+## Frontend Setup
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend URL: `http://localhost:5173`
+
+## Usage Flow
+
+1. Register students first (`/register`)
+2. Open **Take Attendance** and upload a group photo
+3. View results with present / absent / unknown statuses
+4. Export attendance CSV for any session
+
+## API Routes
+
+- `POST /api/students/validate`
+- `POST /api/students/register`
+- `GET /api/students`
+- `DELETE /api/students/:id`
+- `POST /api/attendance/take`
+- `GET /api/attendance/sessions`
+- `GET /api/attendance/session/:session_id`
+- `GET /api/attendance/export/:session_id`
