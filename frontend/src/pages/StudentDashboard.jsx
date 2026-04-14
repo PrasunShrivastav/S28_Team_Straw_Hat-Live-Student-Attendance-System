@@ -172,15 +172,6 @@ export default function StudentDashboard() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="relative cursor-pointer hover:bg-slate-100 p-2 rounded-full transition-colors group" onClick={() => setActiveTab('schedule')}>
-              <Bell size={20} className="text-slate-500 group-hover:text-indigo-600" />
-              {schedules.length > 0 && (
-                <span className="absolute top-1.5 right-1.5 bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white animate-pulse">
-                  {schedules.length}
-                </span>
-              )}
-            </div>
-            
             <span className="hidden sm:inline text-sm font-medium text-slate-500">Student Portal</span>
             <button onClick={logout} className="p-2 ml-4 rounded-md text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2">
               <LogOut size={18} />
