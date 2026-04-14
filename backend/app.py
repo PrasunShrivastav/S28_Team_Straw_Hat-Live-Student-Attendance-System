@@ -45,7 +45,7 @@ for folder in [UPLOAD_FOLDER, STUDENT_PHOTO_FOLDER]:
     os.makedirs(folder, exist_ok=True)
 
 app = Flask(__name__, static_url_path="/static", static_folder="static")
-CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174"]}})
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 def _collect_photos_from_request():
     photos = request.files.getlist("photos[]")
