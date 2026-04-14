@@ -1,5 +1,5 @@
-import { Link, NavLink } from 'react-router-dom'
-import { LayoutDashboard, UserPlus, Users, Camera } from 'lucide-react'
+import { Link, NavLink, useNavigate, Navigate } from 'react-router-dom'
+import { LayoutDashboard, UserPlus, Users, Camera, LogOut } from 'lucide-react'
 
 const navItems = [
   { to: '/', label: 'Home Page', icon: LayoutDashboard },
@@ -9,9 +9,22 @@ const navItems = [
 ]
 
 export default function Navbar() {
+  const navigate = useNavigate()
+  const teacherStr = localStorage.getItem('teacher')
+  
+  if (!teacherStr) {
+    return <Navigate to="/teacher-login" />
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('teacher')
+    navigate('/teacher-login')
+  }
+
   return (
-    <aside className="w-full md:w-72 bg-slate-900 text-white min-h-screen p-4">
-      <Link to="/" className="text-xl font-bold block mb-8">Face Attendance</Link>
+    <aside className="w-full md:w-72 bg-slate-900 text-white min-h-screen p-4 flex flex-col justify-between">
+      <div>
+        <Link to="/" className="text-xl font-bold block mb-8">Face Attendance</Link>
       <nav className="space-y-2">
         {navItems.map((item) => {
           const Icon = item.icon
@@ -31,6 +44,17 @@ export default function Navbar() {
           )
         })}
       </nav>
+      </div>
+      
+      <div className="mt-8">
+        <button 
+          onClick={handleLogout}
+          className="flex items-center gap-2 rounded-lg px-3 py-2 w-full text-red-400 hover:bg-slate-800 transition text-left"
+        >
+          <LogOut size={18} />
+          <span>Logout</span>
+        </button>
+      </div>
     </aside>
   )
 }

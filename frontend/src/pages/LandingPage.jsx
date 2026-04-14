@@ -37,16 +37,25 @@ export default function LandingPage() {
         </Link>
       </div>
 
-      {/* Already registered student */}
-      <div className="flex items-center gap-2 text-slate-400">
+      {/* Already registered */}
+      <div className="flex flex-col sm:flex-row items-center gap-4 text-slate-400">
         <span className="text-sm">Already registered?</span>
-        <Link 
-          to="/student-login" 
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition-colors"
-        >
-          <LogIn size={16} />
-          Student Login
-        </Link>
+        <div className="flex gap-3">
+          <Link 
+            to="/student-login" 
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition-colors"
+          >
+            <LogIn size={16} />
+            Student Login
+          </Link>
+          <Link 
+            to="/teacher-login" 
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition-colors"
+          >
+            <LogIn size={16} />
+            Teacher Login
+          </Link>
+        </div>
       </div>
     </div>
   )

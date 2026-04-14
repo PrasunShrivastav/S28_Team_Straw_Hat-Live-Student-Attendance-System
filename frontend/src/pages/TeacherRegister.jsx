@@ -19,7 +19,12 @@ export default function TeacherRegister() {
 
     try {
       setLoading(true)
-      await registerTeacher({ name, email, password })
+      const res = await registerTeacher({ name, email, password })
+      localStorage.setItem('teacher', JSON.stringify({
+        id: res.data.teacher_id,
+        name,
+        email
+      }))
       toast.success('Teacher registered successfully')
       navigate('/teacher-dashboard')
     } catch (err) {

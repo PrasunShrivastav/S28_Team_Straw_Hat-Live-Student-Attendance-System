@@ -6,9 +6,11 @@ const api = axios.create({
 
 export const registerStudent = (formData) => api.post('/students/register', formData)
 export const registerTeacher = (data) => api.post('/teachers/register', data)
+export const teacherLogin = (data) => api.post('/teachers/login', data)
 export const validateStudentPhoto = (formData) => api.post('/students/validate', formData)
 export const getStudents = () => api.get('/students')
 export const deleteStudent = (id) => api.delete(`/students/${id}`)
+export const addStudentPhotos = (studentId, formData) => api.post(`/students/${studentId}/add-photos`, formData)
 
 export const takeAttendance = (formData) => api.post('/attendance/take', formData)
 export const getSessions = () => api.get('/attendance/sessions')
