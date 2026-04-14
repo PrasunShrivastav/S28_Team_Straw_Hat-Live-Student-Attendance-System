@@ -23,6 +23,7 @@ from database import (
     get_student_by_email,
     get_student_attendance,
     get_students,
+    get_teacher_by_email,
     update_student_photos,
 )
 from face_utils import average_encodings, detect_faces_and_match, encode_face
@@ -164,6 +165,33 @@ def register_teacher():
         return jsonify({"success": False, "message": str(exc)}), 400
     except Exception as exc:
         return jsonify({"success": False, "message": f"Registration failed: {str(exc)}"}), 500
+
+
+@app.route("/api/teachers/login", methods=["POST"])
+def login_teacher():
+    data = request.json or {}
+    email = data.get("email", "").strip()
+    password = data.get("password", "")
+
+    if not email or not password:
+        return jsonify({"success": False, "message": "Email and password are required"}), 400
+
+    teacher = get_teacher_by_email(email)
+    if not teacher:
+        return jsonify({"success": False, "message": "Invalid email or password"}), 401
+
+    if not check_password_hash(teacher.get("password_hash"), password):
+        return jsonify({"success": False, "message": "Invalid email or password"}), 401
+
+    return jsonify({
+        "success": True,
+        "message": "Login successful",
+        "teacher": {
+            "id": str(teacher.get("_id", "")),
+            "name": teacher.get("name", ""),
+            "email": teacher.get("email", "")
+        }
+    }), 200
 
 
 @app.route("/api/students/<student_id>/add-photos", methods=["POST"])
