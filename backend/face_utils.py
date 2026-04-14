@@ -7,6 +7,8 @@ import face_recognition
 MATCH_TOLERANCE = 0.5
 
 
+def encode_face(image_path: str) -> np.ndarray:
+    """Return exactly one 128-d face encoding for a photo."""
 def extract_single_face_encoding(image_path: str) -> list[float]:
     image = face_recognition.load_image_file(image_path)
     face_locations = face_recognition.face_locations(image, model="hog")
@@ -17,6 +19,19 @@ def extract_single_face_encoding(image_path: str) -> list[float]:
         raise ValueError("Multiple faces detected. Please upload exactly one face")
 
     encoding = face_recognition.face_encodings(image, face_locations)[0]
+    return encoding
+
+
+def average_encodings(list_of_encodings: list[np.ndarray]) -> np.ndarray:
+    """Average a list of 128-d encodings into one encoding."""
+    if not list_of_encodings:
+        raise ValueError("No encodings provided for averaging")
+    return np.mean(list_of_encodings, axis=0)
+
+
+def extract_single_face_encoding(image_path: str) -> list[float]:
+    """Backward-compatible helper used by older call sites."""
+    return encode_face(image_path).tolist()
     return encoding.tolist()
 
 

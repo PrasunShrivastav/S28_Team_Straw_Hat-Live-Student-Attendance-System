@@ -3,6 +3,8 @@ import io
 import os
 import uuid
 from datetime import datetime, timezone
+
+import numpy as np
 from bson import ObjectId
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_file
@@ -15,6 +17,11 @@ from database import (
     delete_student,
     get_session_by_session_id,
     get_sessions,
+    get_student_by_id,
+    get_students,
+    update_student_photos,
+)
+from face_utils import average_encodings, detect_faces_and_match, encode_face
     get_students,
 )
 from face_utils import detect_faces_and_match, extract_single_face_encoding
@@ -32,12 +39,48 @@ app = Flask(__name__, static_url_path="/static", static_folder="static")
 CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}})
 
 
+def _collect_photos_from_request():
+    photos = request.files.getlist("photos[]")
+    if not photos:
+        photos = request.files.getlist("photos")
+    return [p for p in photos if p and p.filename]
+
+
+def _process_registration_photos(photos, student_dir: str):
+    os.makedirs(student_dir, exist_ok=True)
+    encodings = []
+    photo_paths = []
+
+    for idx, photo in enumerate(photos):
+        filename = secure_filename(f"{idx+1}_{uuid.uuid4().hex}_{photo.filename}")
+        photo_abs_path = os.path.join(student_dir, filename)
+        photo.save(photo_abs_path)
+
+        try:
+            encodings.append(encode_face(photo_abs_path))
+        except Exception:
+            if os.path.exists(photo_abs_path):
+                os.remove(photo_abs_path)
+            raise
+
+        student_folder_name = os.path.basename(student_dir)
+        photo_paths.append(f"student_photos/{student_folder_name}/{filename}")
+
+    return encodings, photo_paths
+
+
 @app.route("/api/students/validate", methods=["POST"])
 def validate_student_photo():
     photo = request.files.get("photo")
     if not photo:
         return jsonify({"success": False, "message": "Photo is required"}), 400
 
+    temp_name = secure_filename(f"validate_{uuid.uuid4().hex}_{photo.filename}")
+    temp_path = os.path.join(STUDENT_PHOTO_FOLDER, temp_name)
+    photo.save(temp_path)
+
+    try:
+        encode_face(temp_path)
     filename = secure_filename(f"validate_{uuid.uuid4().hex}_{photo.filename}")
     temp_path = os.path.join(STUDENT_PHOTO_FOLDER, filename)
     photo.save(temp_path)
@@ -56,6 +99,102 @@ def validate_student_photo():
 def register_student():
     name = request.form.get("name", "").strip()
     roll_number = request.form.get("roll_number", "").strip()
+    photos = _collect_photos_from_request()
+
+    if not name or not roll_number:
+        return jsonify({"success": False, "message": "name and roll_number are required"}), 400
+    if len(photos) == 0:
+        return jsonify({"success": False, "message": "At least one photo is required"}), 400
+    if len(photos) > 5:
+        return jsonify({"success": False, "message": "Maximum 5 photos are allowed"}), 400
+
+    student_oid = ObjectId()
+    student_id = str(student_oid)
+    student_dir = os.path.join(STUDENT_PHOTO_FOLDER, student_id)
+
+    try:
+        encodings, photo_paths = _process_registration_photos(photos, student_dir)
+        averaged = average_encodings(encodings).tolist()
+
+        create_student(
+            name=name,
+            roll_number=roll_number,
+            photo_path=photo_paths[0],
+            face_encoding=averaged,
+            registration_photos=photo_paths,
+            photo_count=len(photo_paths),
+            student_id=student_oid,
+        )
+
+        return jsonify(
+            {
+                "success": True,
+                "student_id": student_id,
+                "photo_count": len(photo_paths),
+                "message": f"Student registered with {len(photo_paths)} photos",
+            }
+        ), 201
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"success": False, "message": f"Registration failed: {str(exc)}"}), 500
+
+
+@app.route("/api/students/<student_id>/add-photos", methods=["POST"])
+def add_student_photos(student_id):
+    try:
+        student = get_student_by_id(student_id)
+    except Exception:
+        return jsonify({"success": False, "message": "Invalid student id"}), 400
+
+    if not student:
+        return jsonify({"success": False, "message": "Student not found"}), 404
+
+    photos = _collect_photos_from_request()
+    if len(photos) == 0:
+        return jsonify({"success": False, "message": "At least one photo is required"}), 400
+
+    existing_paths = student.get("registration_photos", [student.get("photo_path")])
+    existing_count = int(student.get("photo_count", len(existing_paths)))
+
+    if existing_count + len(photos) > 5:
+        return jsonify({"success": False, "message": f"Cannot exceed 5 photos. Current: {existing_count}"}), 400
+
+    student_dir = os.path.join(STUDENT_PHOTO_FOLDER, student_id)
+
+    try:
+        new_encodings, new_photo_paths = _process_registration_photos(photos, student_dir)
+
+        existing_avg = np.array(student["face_encoding"], dtype=np.float64)
+        weighted_sum = existing_avg * existing_count
+        for enc in new_encodings:
+            weighted_sum += enc
+        new_count = existing_count + len(new_encodings)
+        new_avg = (weighted_sum / new_count).tolist()
+
+        updated_paths = existing_paths + new_photo_paths
+
+        update_student_photos(
+            student_id=student_id,
+            averaged_encoding=new_avg,
+            registration_photos=updated_paths,
+            photo_count=new_count,
+        )
+
+        return jsonify(
+            {
+                "success": True,
+                "student_id": student_id,
+                "photo_count": new_count,
+                "message": f"Updated student with {new_count} photos",
+            }
+        )
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"success": False, "message": f"Failed to add photos: {str(exc)}"}), 500
+
+
     photo = request.files.get("photo")
 
     if not all([name, roll_number, photo]):
