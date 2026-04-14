@@ -45,7 +45,7 @@ for folder in [UPLOAD_FOLDER, STUDENT_PHOTO_FOLDER]:
     os.makedirs(folder, exist_ok=True)
 
 app = Flask(__name__, static_url_path="/static", static_folder="static")
-CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174"]}})
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 def _collect_photos_from_request():
     photos = request.files.getlist("photos[]")
@@ -325,21 +325,38 @@ def take_attendance():
 def attendance_sessions():
     sessions = get_sessions()
     summaries = []
-    for s in sessions:
-        present_count = sum(1 for r in s.get("results", []) if r.get("status") == "present")
-        unknown_count = sum(1 for r in s.get("results", []) if r.get("status") == "unknown")
-        summaries.append(
-            {
-                "session_id": s["session_id"],
-                "date": s["date"],
-                "timestamp": s["timestamp"],
-                "present_count": present_count,
-                "unknown_count": unknown_count,
-                "absent_count": len(s.get("absent_students", [])),
-            }
-        )
-    return jsonify(summaries)
 
+    for s in sessions:
+        present_count = sum(
+            1 for r in s.get("results", [])
+            if r.get("status") == "present"
+        )
+
+        unknown_count = sum(
+            1 for r in s.get("results", [])
+            if r.get("status") == "unknown"
+        )
+
+        timestamp = s.get("timestamp")
+
+        # ✅ Handle BOTH string and datetime
+        if isinstance(timestamp, str):
+            date_value = timestamp[:10]  # "YYYY-MM-DD"
+        elif timestamp:
+            date_value = timestamp.strftime("%Y-%m-%d")
+        else:
+            date_value = None
+
+        summaries.append({
+            "session_id": s.get("session_id", str(s.get("_id"))),
+            "date": s.get("date") or date_value,
+            "timestamp": timestamp,
+            "present_count": present_count,
+            "unknown_count": unknown_count,
+            "absent_count": len(s.get("absent_students", [])),
+        })
+
+    return jsonify(summaries)
 
 @app.route("/api/attendance/session/<session_id>", methods=["GET"])
 def attendance_session(session_id):

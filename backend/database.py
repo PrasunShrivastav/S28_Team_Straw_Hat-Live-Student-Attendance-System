@@ -1,4 +1,5 @@
 import os
+import uuid
 from datetime import datetime, timezone
 from bson import ObjectId
 from dotenv import load_dotenv
@@ -18,14 +19,17 @@ teachers_col = _db["teachers"]
 schedules_col = _db["schedules"]
 
 
+# ---------------- STUDENTS ---------------- #
+
 def _serialize_student(student: dict) -> dict:
+    photo_path = student.get("photo_path", "")
     return {
-        "id": str(student["_id"]),
-        "name": student["name"],
-        "email": student.get("email"),
-        "roll_number": student["roll_number"],
-        "photo_path": student["photo_path"],
-        "registration_photos": student.get("registration_photos", [student["photo_path"]]),
+        "id": str(student.get("_id")),
+        "name": student.get("name", ""),
+        "email": student.get("email", ""),
+        "roll_number": student.get("roll_number", ""),
+        "photo_path": photo_path,
+        "registration_photos": student.get("registration_photos", [photo_path] if photo_path else []),
         "photo_count": int(student.get("photo_count", 1)),
         "registered_at": student.get("registered_at"),
     }
@@ -55,6 +59,7 @@ def create_student(
         "photo_count": photo_count,
         "registered_at": datetime.now(timezone.utc),
     }
+
     if student_id is not None:
         payload["_id"] = student_id
 
@@ -62,33 +67,19 @@ def create_student(
     return str(result.inserted_id)
 
 
-def create_teacher(name: str, email: str, password_hash: str) -> str:
-    existing = teachers_col.find_one({"email": email})
-    if existing:
-        raise ValueError("Teacher with this email already exists")
-    
-    result = teachers_col.insert_one({
-        "name": name,
-        "email": email,
-        "password_hash": password_hash,
-        "registered_at": datetime.now(timezone.utc),
-    })
-    return str(result.inserted_id)
-
-def get_teacher_by_email(email: str) -> dict | None:
-    return teachers_col.find_one({"email": email})
-
-
 def get_students(include_encodings: bool = False) -> list[dict]:
     projection = None if include_encodings else {"face_encoding": 0}
     students = list(students_col.find({}, projection).sort("name", 1))
+
     if include_encodings:
         for student in students:
-            student["id"] = str(student["_id"])
-            student.setdefault("registration_photos", [student.get("photo_path")])
+            student["id"] = str(student.get("_id"))
+            student.setdefault("photo_path", "")
+            student.setdefault("registration_photos", [student.get("photo_path", "")])
             student.setdefault("photo_count", len(student["registration_photos"]))
     else:
         students = [_serialize_student(s) for s in students]
+
     return students
 
 
@@ -99,39 +90,8 @@ def get_student_by_id(student_id: str) -> dict | None:
 def get_student_by_email(email: str) -> dict | None:
     student = students_col.find_one({"email": email})
     if student:
-        student["id"] = str(student["_id"])
+        student["id"] = str(student.get("_id"))
     return student
-
-
-def get_student_attendance(student_id: str) -> list[dict]:
-    """Return all attendance sessions, annotated with whether this student was present/absent."""
-    sessions = list(attendance_col.find({}).sort("timestamp", -1))
-    result = []
-    for session in sessions:
-        present_ids = {
-            str(r.get("student_id", ""))
-            for r in session.get("results", [])
-            if r.get("status") == "present"
-        }
-        absent_ids = {
-            str(s.get("student_id", ""))
-            for s in session.get("absent_students", [])
-        }
-        if student_id in present_ids:
-            status = "present"
-        elif student_id in absent_ids:
-            status = "absent"
-        else:
-            continue  # student wasn't part of this session at all
-        result.append({
-            "session_id": session["session_id"],
-            "date": session["date"],
-            "timestamp": session.get("timestamp"),
-            "status": status,
-            "total_present": len(present_ids),
-            "total_absent": len(absent_ids),
-        })
-    return result
 
 
 def update_student_photos(
@@ -158,24 +118,99 @@ def delete_student(student_id: str) -> bool:
     return result.deleted_count > 0
 
 
+# ---------------- TEACHERS ---------------- #
+
+def create_teacher(name: str, email: str, password_hash: str) -> str:
+    existing = teachers_col.find_one({"email": email})
+    if existing:
+        raise ValueError("Teacher already exists")
+
+    result = teachers_col.insert_one({
+        "name": name,
+        "email": email,
+        "password_hash": password_hash,
+        "registered_at": datetime.now(timezone.utc),
+    })
+    return str(result.inserted_id)
+
+
+def get_teacher_by_email(email: str) -> dict | None:
+    return teachers_col.find_one({"email": email})
+
+
+# ---------------- ATTENDANCE ---------------- #
+
 def create_attendance_record(record: dict) -> str:
+    if "session_id" not in record:
+        record["session_id"] = str(uuid.uuid4())
+
+    record.setdefault("timestamp", datetime.now(timezone.utc))
+
     result = attendance_col.insert_one(record)
     return str(result.inserted_id)
 
 
 def get_sessions() -> list[dict]:
     sessions = list(attendance_col.find({}).sort("timestamp", -1))
+
     for session in sessions:
-        session["id"] = str(session["_id"])
+        session["id"] = str(session.get("_id"))
+        session["session_id"] = session.get("session_id", session["id"])
+
     return sessions
 
 
 def get_session_by_session_id(session_id: str) -> dict | None:
-    session = attendance_col.find_one({"session_id": session_id})
+    query = {"$or": [{"session_id": session_id}]}
+
+    if ObjectId.is_valid(session_id):
+        query["$or"].append({"_id": ObjectId(session_id)})
+
+    session = attendance_col.find_one(query)
+
     if session:
-        session["id"] = str(session["_id"])
+        session["id"] = str(session.get("_id"))
+        session["session_id"] = session.get("session_id", session["id"])
+
     return session
 
+
+def get_student_attendance(student_id: str) -> list[dict]:
+    sessions = list(attendance_col.find({}).sort("timestamp", -1))
+    result = []
+
+    for session in sessions:
+        present_ids = {
+            str(r.get("student_id", ""))
+            for r in session.get("results", [])
+            if r.get("status") == "present"
+        }
+
+        absent_ids = {
+            str(a.get("student_id", ""))
+            for a in session.get("absent_students", [])
+        }
+
+        if student_id in present_ids:
+            status = "present"
+        elif student_id in absent_ids:
+            status = "absent"
+        else:
+            continue
+
+        result.append({
+            "session_id": session.get("session_id", str(session.get("_id"))),
+            "date": session.get("date"),
+            "timestamp": session.get("timestamp"),
+            "status": status,
+            "total_present": len(present_ids),
+            "total_absent": len(absent_ids),
+        })
+
+    return result
+
+
+# ---------------- SCHEDULES ---------------- #
 
 def create_schedule(data: dict) -> str:
     data["created_at"] = datetime.now(timezone.utc)
@@ -185,9 +220,11 @@ def create_schedule(data: dict) -> str:
 
 def get_schedules() -> list[dict]:
     schedules = list(schedules_col.find({}).sort([("day_of_week", 1), ("time", 1)]))
+
     for schedule in schedules:
-        schedule["id"] = str(schedule["_id"])
-        del schedule["_id"]
+        schedule["id"] = str(schedule.get("_id"))
+        schedule.pop("_id", None)
+
     return schedules
 
 
@@ -205,75 +242,70 @@ def delete_schedule(schedule_id: str) -> bool:
     return result.deleted_count > 0
 
 
+# ---------------- ANALYTICS ---------------- #
+
 def get_student_streak(student_id: str) -> int:
-    """Calculates consecutive 'present' statuses from newest to oldest."""
     records = get_student_attendance(student_id)
     streak = 0
-    # records are already sorted by timestamp desc in get_student_attendance
+
     for r in records:
         if r["status"] == "present":
             streak += 1
         else:
             break
+
     return streak
 
 
+def get_absence_streak(student_id: str) -> dict:
+    records = get_student_attendance(student_id)
+    streak = 0
+    dates = []
+
+    for r in records:
+        if r["status"] == "absent":
+            streak += 1
+            dates.append(r.get("timestamp"))
+        else:
+            break
+
+    return {"streak": streak, "dates": dates}
+
+
 def get_weekly_leaderboard() -> list[dict]:
-    """Calculate top 5 students for the current calendar week."""
     from datetime import timedelta
+
     now = datetime.now(timezone.utc)
-    # Start of week (Monday)
     start_of_week = now - timedelta(days=now.weekday())
     start_of_week = start_of_week.replace(hour=0, minute=0, second=0, microsecond=0)
 
     sessions = list(attendance_col.find({"timestamp": {"$gte": start_of_week}}))
-    if not sessions:
-        return []
+    students = list(students_col.find({}, {"name": 1}))
 
-    # Count attendance per student this week
-    students = list(students_col.find({}, {"name": 1, "roll_number": 1}))
-    student_stats = []
+    leaderboard = []
 
     for s in students:
-        sid = str(s["_id"])
-        total_week_sessions = 0
-        present_week_sessions = 0
+        sid = str(s.get("_id"))
+        total = 0
+        present = 0
 
         for sess in sessions:
-            present_ids = {str(r.get("student_id", "")) for r in sess.get("results", []) if r.get("status") == "present"}
-            absent_ids = {str(a.get("student_id", "")) for a in sess.get("absent_students", [])}
-            
-            if sid in present_ids:
-                total_week_sessions += 1
-                present_week_sessions += 1
-            elif sid in absent_ids:
-                total_week_sessions += 1
+            present_ids = {str(r.get("student_id")) for r in sess.get("results", []) if r.get("status") == "present"}
+            absent_ids = {str(a.get("student_id")) for a in sess.get("absent_students", [])}
 
-        if total_week_sessions > 0:
-            percentage = round((present_week_sessions / total_week_sessions) * 100, 1)
-            student_stats.append({
-                "name": s["name"],
-                "percentage": percentage,
-                "present": present_week_sessions,
-                "total": total_week_sessions
+            if sid in present_ids:
+                total += 1
+                present += 1
+            elif sid in absent_ids:
+                total += 1
+
+        if total > 0:
+            leaderboard.append({
+                "name": s.get("name"),
+                "percentage": round((present / total) * 100, 1),
+                "present": present,
+                "total": total
             })
 
-    # Sort by percentage desc, then present count desc
-    student_stats.sort(key=lambda x: (x["percentage"], x["present"]), reverse=True)
-    return student_stats[:5]
-
-
-def get_absence_streak(student_id: str) -> dict:
-    """Calculates consecutive 'absent' statuses and returns count + dates."""
-    records = get_student_attendance(student_id)
-    streak = 0
-    dates = []
-    # records are already sorted by timestamp desc in get_student_attendance
-    for r in records:
-        if r["status"] == "absent":
-            streak += 1
-            dates.append(r["timestamp"])
-        else:
-            break
-    return {"streak": streak, "dates": dates}
-
+    leaderboard.sort(key=lambda x: (x["percentage"], x["present"]), reverse=True)
+    return leaderboard[:5]
