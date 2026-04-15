@@ -1,29 +1,47 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { takeAttendance, getSchedules } from '../api'
+import { takeAttendance, getSessionsMonth } from '../api'
+
+function formatLocalDate(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 
 export default function TakeAttendance() {
   const navigate = useNavigate()
   const [photo, setPhoto] = useState(null)
   const [preview, setPreview] = useState('')
   const [loading, setLoading] = useState(false)
-  const [schedules, setSchedules] = useState([])
+  const [todaySessions, setTodaySessions] = useState([])
   const [scheduleId, setScheduleId] = useState('')
+  const today = formatLocalDate(new Date())
+  const currentMonth = today.slice(0, 7)
 
   useEffect(() => {
-    getSchedules()
-      .then(res => setSchedules(res.data))
+    getSessionsMonth(currentMonth)
+      .then((res) => {
+        // Only include sessions that are for today and do NOT have attendance taken
+        const sessionsForToday = res.data.filter((session) => session.date === today && !session.attendance_taken)
+        setTodaySessions(sessionsForToday)
+      })
       .catch(err => toast.error('Failed to load schedules'))
-  }, [])
+  }, [currentMonth, today])
+
+  const formatScheduleOption = (schedule) => {
+    return `${schedule.subject} — ${schedule.time} (${schedule.type})`
+  }
 
   const submit = async () => {
     if (!photo) return toast.error('Please select a group photo')
 
     const formData = new FormData()
     formData.append('group_photo', photo)
+    formData.append('session_date', today)
     if (scheduleId) {
-      formData.append('schedule_id', scheduleId)
+      formData.append('session_id', scheduleId)
     }
 
     try {
@@ -42,7 +60,7 @@ export default function TakeAttendance() {
     <div className="space-y-4 max-w-2xl">
       <h1 className="text-2xl font-bold">Take Attendance</h1>
       
-      {schedules.length > 0 && (
+      {todaySessions.length > 0 ? (
         <div className="space-y-2">
           <label className="block text-sm font-medium text-slate-700">Link Schedule (Optional)</label>
           <select 
@@ -51,14 +69,20 @@ export default function TakeAttendance() {
             className="w-full p-2 border rounded-lg bg-white"
           >
             <option value="">-- No Schedule --</option>
-            {schedules.map(s => (
+            {todaySessions.map(s => (
               <option key={s.id} value={s.id}>
-                {s.subject} ({s.type}) - {s.day_of_week} {s.time}
+                {formatScheduleOption(s)}
               </option>
             ))}
           </select>
         </div>
+      ) : (
+        <p className="text-sm text-slate-500">No sessions scheduled for today</p>
       )}
+
+      <Link to="/analytics/monthly" className="inline-block text-sm font-medium text-indigo-600 hover:text-indigo-800">
+        View Monthly Analytics →
+      </Link>
 
       <label className="block border-2 border-dashed border-slate-300 rounded-xl p-6 bg-white cursor-pointer">
         <input type="file" className="hidden" accept="image/*" onChange={(e) => {

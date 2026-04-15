@@ -1,11 +1,12 @@
 import { Link, NavLink, useNavigate, Navigate } from 'react-router-dom'
-import { LayoutDashboard, UserPlus, Users, Camera, LogOut, Calendar, Clock } from 'lucide-react'
+import { LayoutDashboard, Users, Camera, LogOut, Calendar, BarChart3 } from 'lucide-react'
 
 const navItems = [
   { to: '/teacher-dashboard', label: 'Teacher Dashboard', icon: LayoutDashboard },
   { to: '/teacher-schedule', label: 'Schedule', icon: Calendar },
   { to: '/students', label: 'Students', icon: Users },
   { to: '/take-attendance', label: 'Take Attendance', icon: Camera },
+  { to: '/analytics/monthly', label: 'Monthly Analytics', icon: BarChart3 },
   { to: '/reports', label: 'Reports', icon: Calendar },
 ]
 

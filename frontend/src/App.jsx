@@ -12,6 +12,7 @@ import TakeAttendance from './pages/TakeAttendance'
 import Results from './pages/Results'
 import TeacherSchedule from './pages/TeacherSchedule'
 import Reports from './pages/Reports'
+import MonthlyAnalytics from './pages/MonthlyAnalytics'
 
 export default function App() {
   const location = useLocation()
@@ -41,6 +42,7 @@ export default function App() {
             <Route path="/take-attendance" element={<TakeAttendance />} />
             <Route path="/results/:sessionId" element={<Results />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/analytics/monthly" element={<MonthlyAnalytics />} />
           </Routes>
         </main>
       )}

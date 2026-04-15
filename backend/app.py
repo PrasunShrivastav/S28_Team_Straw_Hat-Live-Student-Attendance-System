@@ -29,6 +29,15 @@ from database import (
     get_schedules,
     update_schedule,
     delete_schedule,
+    create_session_definition,
+    update_session_definition,
+    get_session_definition_by_id,
+    get_session_week,
+    get_session_month,
+    append_skip_date,
+    end_session_definition,
+    delete_session_definition,
+    get_monthly_analytics,
     get_student_streak,
     get_weekly_leaderboard,
     get_absence_streak,
@@ -76,6 +85,119 @@ def _process_registration_photos(photos, student_dir: str):
         photo_paths.append(f"student_photos/{student_folder_name}/{filename}")
 
     return encodings, photo_paths
+
+
+DAY_NAME_TO_INDEX = {
+    "monday": 0,
+    "tuesday": 1,
+    "wednesday": 2,
+    "thursday": 3,
+    "friday": 4,
+    "saturday": 5,
+    "sunday": 6,
+}
+
+
+def _validate_iso_date(date_value: str | None, field_name: str):
+    if date_value in (None, ""):
+        return None
+
+    try:
+        return datetime.fromisoformat(str(date_value).split("T", 1)[0]).date()
+    except ValueError as exc:
+        raise ValueError(f"{field_name} must be a valid ISO date") from exc
+
+
+def _normalize_session_payload(data: dict) -> dict:
+    required = ["subject", "type", "room", "time", "duration_minutes", "repeat", "start_date"]
+    missing = [field for field in required if data.get(field) in (None, "")]
+    if missing:
+        raise ValueError(f"Missing required fields: {', '.join(missing)}")
+
+    repeat = data.get("repeat")
+    if repeat not in {"one_time", "weekly", "daily"}:
+        raise ValueError("repeat must be one of: one_time, weekly, daily")
+
+    start_date = _validate_iso_date(data.get("start_date"), "start_date")
+    end_date = _validate_iso_date(data.get("end_date"), "end_date")
+
+    if end_date and start_date and end_date < start_date:
+        raise ValueError("end_date cannot be before start_date")
+
+    try:
+        duration_minutes = int(data.get("duration_minutes", 60))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("duration_minutes must be a number") from exc
+
+    if duration_minutes <= 0:
+        raise ValueError("duration_minutes must be greater than 0")
+
+    day_of_week = data.get("day_of_week")
+    if repeat == "weekly":
+        if day_of_week in (None, ""):
+            raise ValueError("day_of_week is required for weekly sessions")
+        try:
+            day_of_week = int(day_of_week)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("day_of_week must be an integer between 0 and 6") from exc
+        if day_of_week < 0 or day_of_week > 6:
+            raise ValueError("day_of_week must be an integer between 0 and 6")
+    else:
+        day_of_week = None
+
+    return {
+        "subject": data.get("subject", "").strip(),
+        "type": data.get("type", "").strip(),
+        "room": data.get("room", "").strip(),
+        "time": data.get("time", "").strip(),
+        "duration_minutes": duration_minutes,
+        "repeat": repeat,
+        "start_date": start_date.isoformat() if start_date else None,
+        "end_date": end_date.isoformat() if end_date else None,
+        "day_of_week": day_of_week,
+        "skip_dates": list(data.get("skip_dates", [])),
+    }
+
+
+def _normalize_legacy_schedule_payload(data: dict) -> dict:
+    day_name = str(data.get("day_of_week", "")).strip().lower()
+    if day_name not in DAY_NAME_TO_INDEX:
+        raise ValueError("day_of_week must be a valid weekday")
+
+    return _normalize_session_payload({
+        "subject": data.get("subject"),
+        "type": data.get("type"),
+        "room": data.get("room"),
+        "time": data.get("time"),
+        "duration_minutes": data.get("duration_minutes", 60),
+        "repeat": data.get("repeat", "weekly"),
+        "start_date": data.get("start_date") or datetime.now(timezone.utc).date().isoformat(),
+        "end_date": data.get("end_date"),
+        "day_of_week": DAY_NAME_TO_INDEX[day_name],
+        "skip_dates": data.get("skip_dates", []),
+    })
+
+
+def _validate_month_value(month_value: str):
+    try:
+        return datetime.strptime(month_value, "%Y-%m")
+    except ValueError as exc:
+        raise ValueError("month must be in YYYY-MM format") from exc
+
+
+def _shift_month_value(month_value: str, delta: int) -> str:
+    parsed = _validate_month_value(month_value)
+    year = parsed.year
+    month = parsed.month + delta
+
+    while month < 1:
+        month += 12
+        year -= 1
+    while month > 12:
+        month -= 12
+        year += 1
+
+    return f"{year}-{month:02d}"
 
 
 @app.route("/api/students/validate", methods=["POST"])
@@ -300,7 +422,17 @@ def take_attendance():
         if str(s["_id"]) not in present_ids
     ]
 
-    schedule_id = request.form.get("schedule_id")
+    schedule_id = request.form.get("session_id") or request.form.get("schedule_id")
+    session_date = request.form.get("session_date")
+    if session_date:
+        try:
+            session_date = _validate_iso_date(session_date, "session_date").isoformat()
+        except ValueError as exc:
+            return jsonify({"success": False, "message": str(exc)}), 400
+
+    session_definition = None
+    if schedule_id:
+        session_definition = get_session_definition_by_id(schedule_id)
 
     session_id = uuid.uuid4().hex
     record = {
@@ -313,6 +445,13 @@ def take_attendance():
     }
     if schedule_id:
         record["schedule_id"] = schedule_id
+    if session_date:
+        record["session_date"] = session_date
+    if session_definition:
+        record["subject"] = session_definition.get("subject")
+        record["type"] = session_definition.get("type")
+        record["room"] = session_definition.get("room")
+        record["time"] = session_definition.get("time")
         
     create_attendance_record(record)
 
@@ -553,16 +692,246 @@ def list_schedules():
     return jsonify(get_schedules()), 200
 
 
+@app.route("/api/sessions/create", methods=["POST"])
+def create_session():
+    data = request.json or {}
+    try:
+        session_id = create_session_definition(_normalize_session_payload(data))
+        return jsonify({"success": True, "session_id": session_id}), 201
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"success": False, "message": str(exc)}), 500
+
+
+@app.route("/api/sessions/<session_id>/skip", methods=["POST"])
+def skip_session(session_id):
+    data = request.json or {}
+    try:
+        skip_date = _validate_iso_date(data.get("skip_date"), "skip_date")
+        if skip_date is None:
+            return jsonify({"success": False, "message": "skip_date is required"}), 400
+
+        updated = append_skip_date(session_id, skip_date.isoformat())
+        if not updated:
+            return jsonify({"success": False, "message": "Session not found"}), 404
+
+        return jsonify({"success": True}), 200
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"success": False, "message": str(exc)}), 500
+
+
+@app.route("/api/sessions/<session_id>", methods=["PUT"])
+def edit_session_definition(session_id):
+    data = request.json or {}
+    try:
+        updated = update_session_definition(session_id, _normalize_session_payload(data))
+        if not updated:
+            return jsonify({"success": False, "message": "Session not found or unchanged"}), 404
+        return jsonify({"success": True}), 200
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"success": False, "message": str(exc)}), 500
+
+
+@app.route("/api/sessions/<session_id>/end", methods=["POST"])
+def end_session(session_id):
+    data = request.json or {}
+    try:
+        end_date = _validate_iso_date(data.get("end_date"), "end_date")
+        if end_date is None:
+            return jsonify({"success": False, "message": "end_date is required"}), 400
+
+        updated = end_session_definition(session_id, end_date.isoformat())
+        if not updated:
+            return jsonify({"success": False, "message": "Session not found"}), 404
+
+        return jsonify({"success": True}), 200
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"success": False, "message": str(exc)}), 500
+
+
+@app.route("/api/sessions/<session_id>", methods=["DELETE"])
+def remove_session(session_id):
+    try:
+        deleted = delete_session_definition(session_id)
+        if not deleted:
+            return jsonify({"success": False, "message": "Session not found"}), 404
+        return jsonify({"success": True}), 200
+    except Exception as exc:
+        return jsonify({"success": False, "message": str(exc)}), 500
+
+
+@app.route("/api/sessions/week", methods=["GET"])
+def list_sessions_for_week():
+    date_value = request.args.get("date") or datetime.now(timezone.utc).date().isoformat()
+    try:
+        _validate_iso_date(date_value, "date")
+        return jsonify(get_session_week(date_value)), 200
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"success": False, "message": str(exc)}), 500
+
+
+@app.route("/api/sessions/month", methods=["GET"])
+def list_sessions_for_month():
+    month_value = request.args.get("month")
+    if not month_value:
+        return jsonify({"success": False, "message": "month is required"}), 400
+
+    try:
+        _validate_month_value(month_value)
+        return jsonify(get_session_month(month_value)), 200
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"success": False, "message": str(exc)}), 500
+
+
+@app.route("/api/attendance/student/<student_id>/month", methods=["GET"])
+def student_month_attendance(student_id):
+    month_value = request.args.get("month")
+    if not month_value:
+        return jsonify({"success": False, "message": "month is required"}), 400
+
+    try:
+        _validate_month_value(month_value)
+        scheduled_sessions = get_session_month(month_value)
+        attendance_records = [
+            record for record in get_sessions()
+            if str(record.get("date", "")).startswith(month_value)
+        ]
+
+        results = []
+        for occurrence in scheduled_sessions:
+            occurrence_date = occurrence.get("date")
+            occurrence_subject = occurrence.get("subject")
+            occurrence_session_id = str(occurrence.get("session_id", ""))
+
+            matching_record = next(
+                (
+                    record for record in attendance_records
+                    if (record.get("session_date") or record.get("date")) == occurrence_date
+                    and (
+                        str(record.get("schedule_id", "")) == occurrence_session_id
+                        or record.get("subject") == occurrence_subject
+                    )
+                ),
+                None,
+            )
+
+            status = "not_marked"
+            if matching_record:
+                present_ids = {
+                    str(result.get("student_id", ""))
+                    for result in matching_record.get("results", [])
+                    if result.get("status") == "present"
+                }
+                absent_ids = {
+                    str(student.get("student_id", ""))
+                    for student in matching_record.get("absent_students", [])
+                }
+
+                if student_id in present_ids:
+                    status = "present"
+                elif student_id in absent_ids:
+                    status = "absent"
+
+            results.append({
+                "session_id": occurrence_session_id,
+                "subject": occurrence_subject,
+                "date": occurrence_date,
+                "status": status,
+            })
+
+        return jsonify(results), 200
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"success": False, "message": str(exc)}), 500
+
+
+@app.route("/api/sessions/upcoming", methods=["GET"])
+def upcoming_sessions():
+    limit_raw = request.args.get("limit", "5")
+
+    try:
+        limit = max(1, int(limit_raw))
+    except ValueError:
+        return jsonify({"success": False, "message": "limit must be a number"}), 400
+
+    try:
+        today = datetime.now(timezone.utc).date().isoformat()
+        month_value = today[:7]
+        collected = []
+        seen = set()
+
+        for _ in range(12):
+            for occurrence in get_session_month(month_value):
+                if occurrence.get("date") < today:
+                    continue
+
+                key = (
+                    occurrence.get("session_id"),
+                    occurrence.get("date"),
+                    occurrence.get("time"),
+                )
+                if key in seen:
+                    continue
+                seen.add(key)
+
+                collected.append({
+                    "session_id": occurrence.get("session_id"),
+                    "subject": occurrence.get("subject"),
+                    "type": occurrence.get("type"),
+                    "room": occurrence.get("room"),
+                    "time": occurrence.get("time"),
+                    "duration_minutes": occurrence.get("duration_minutes", 60),
+                    "date": occurrence.get("date"),
+                    "day_of_week": occurrence.get("day_of_week"),
+                })
+
+                if len(collected) >= limit:
+                    return jsonify(collected[:limit]), 200
+
+            month_value = _shift_month_value(month_value, 1)
+
+        return jsonify(collected[:limit]), 200
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"success": False, "message": str(exc)}), 500
+
+
+@app.route("/api/analytics/monthly", methods=["GET"])
+def monthly_analytics():
+    month_value = request.args.get("month")
+    if not month_value:
+        month_value = datetime.now(timezone.utc).strftime("%Y-%m")
+
+    try:
+        _validate_month_value(month_value)
+        return jsonify(get_monthly_analytics(month_value)), 200
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"success": False, "message": str(exc)}), 500
+
+
 @app.route("/api/schedules", methods=["POST"])
 def add_schedule():
     data = request.json or {}
-    required = ["subject", "time", "room", "type", "day_of_week"]
-    if not all(k in data for k in required):
-        return jsonify({"success": False, "message": "Missing required fields"}), 400
-    
     try:
-        sid = create_schedule(data)
+        sid = create_schedule(_normalize_legacy_schedule_payload(data))
         return jsonify({"success": True, "schedule_id": sid}), 201
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -571,13 +940,26 @@ def add_schedule():
 def edit_schedule(schedule_id):
     data = request.json or {}
     try:
-        updated = update_schedule(schedule_id, data)
+        updated = update_schedule(schedule_id, _normalize_legacy_schedule_payload(data))
         if updated:
             return jsonify({"success": True}), 200
         else:
             return jsonify({"success": False, "message": "Schedule not found or unchanged"}), 404
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route("/api/schedules/<schedule_id>", methods=["DELETE"])
+def remove_schedule(schedule_id):
+    try:
+        deleted = delete_schedule(schedule_id)
+        if deleted:
+            return jsonify({"success": True}), 200
+        return jsonify({"success": False, "message": "Schedule not found"}), 404
+    except Exception as exc:
+        return jsonify({"success": False, "message": str(exc)}), 500
 
 
 @app.route("/api/gamification/leaderboard", methods=["GET"])
