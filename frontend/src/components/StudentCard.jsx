@@ -1,5 +1,7 @@
 import { Plus, Trash2 } from 'lucide-react'
 
+const API_BASE = import.meta.env.VITE_API_URL
+
 export default function StudentCard({ student, onDelete, onAddPhotos }) {
   const photoCount = student.photo_count || 1
   const badgeClass = photoCount >= 3 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
@@ -8,7 +10,11 @@ export default function StudentCard({ student, onDelete, onAddPhotos }) {
     <div className="bg-white rounded-xl shadow p-4 border border-slate-200">
       <div className="relative">
         <img
-          src={`http://localhost:5000/static/${student.photo_path}`}
+          src={
+            student.photo_path?.startsWith('http')
+              ? student.photo_path
+              : `${API_BASE}/static/${student.photo_path}`
+          }
           alt={student.name}
           className="h-44 w-full object-cover rounded-lg"
         />

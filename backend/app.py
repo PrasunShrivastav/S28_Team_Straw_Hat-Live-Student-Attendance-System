@@ -49,13 +49,28 @@ load_dotenv()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, os.getenv("UPLOAD_FOLDER", "static/uploads"))
-STUDENT_PHOTO_FOLDER = os.path.join(BASE_DIR, os.getenv("STUDENT_PHOTO_FOLDER", "static/student_photos"))
+STUDENT_PHOTO_FOLDER = os.path.join(BASE_DIR, os.getenv("STUDENT_PHOTOS_FOLDER", "static/student_photos"))
 
 for folder in [UPLOAD_FOLDER, STUDENT_PHOTO_FOLDER]:
     os.makedirs(folder, exist_ok=True)
 
 app = Flask(__name__, static_url_path="/static", static_folder="static")
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+# TODO: replace * with your Vercel URL after first deploy
+# e.g. origins=["https://your-app.vercel.app"]
+CORS(app, origins="*", supports_credentials=True)
+
+def full_url(path):
+    base = os.environ.get("BACKEND_URL", "https://rcn16f04-5000.inc1.devtunnels.ms")
+    return f"{base}{path}"
+
+def _absolute_photo_path(path):
+    if not path:
+        return path
+    if path.startswith("http://") or path.startswith("https://"):
+        return path
+    if path.startswith("/static/"):
+        return full_url(path)
+    return full_url(f"/static/{path}")
 
 def _collect_photos_from_request():
     photos = request.files.getlist("photos[]")
@@ -381,7 +396,14 @@ def add_student_photos(student_id):
 
 @app.route("/api/students", methods=["GET"])
 def list_students():
-    return jsonify(get_students(include_encodings=False))
+    students = get_students(include_encodings=False)
+    for student in students:
+        student["photo_path"] = _absolute_photo_path(student.get("photo_path", ""))
+        student["registration_photos"] = [
+            _absolute_photo_path(path)
+            for path in student.get("registration_photos", [])
+        ]
+    return jsonify(students)
 
 
 @app.route("/api/students/<student_id>", methods=["DELETE"])
@@ -471,7 +493,7 @@ def take_attendance():
                 }
                 for result in recognition_results
             ],
-            "annotated_image_url": f"/static/{record['annotated_image_path']}",
+            "annotated_image_url": full_url(f"/static/{record['annotated_image_path']}"),
         }
     )
 
@@ -530,7 +552,7 @@ def attendance_session(session_id):
             "date": session["date"],
             "timestamp": session["timestamp"],
             "schedule_id": session.get("schedule_id"),
-            "annotated_image_url": f"/static/{session['annotated_image_path']}",
+            "annotated_image_url": full_url(f"/static/{session['annotated_image_path']}"),
             "results": session.get("results", []),
             "absent_students": session.get("absent_students", []),
         }
@@ -613,8 +635,11 @@ def student_login():
             "name": student["name"],
             "email": student.get("email"),
             "roll_number": student["roll_number"],
-            "photo_path": student["photo_path"],
-            "registration_photos": student.get("registration_photos", []),
+            "photo_path": _absolute_photo_path(student.get("photo_path", "")),
+            "registration_photos": [
+                _absolute_photo_path(path)
+                for path in student.get("registration_photos", [])
+            ],
             "photo_count": int(student.get("photo_count", 1)),
             "registered_at": student.get("registered_at"),
         }
@@ -1050,4 +1075,5 @@ def escalation_alerts():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)

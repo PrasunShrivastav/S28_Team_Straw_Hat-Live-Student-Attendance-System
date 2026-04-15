@@ -370,6 +370,37 @@ Edit `frontend/src/api/index.js`:
 const API_BASE_URL = 'http://localhost:5000/api';
 ```
 
+---
+
+## 🚀 Deployment
+
+### Deploying Frontend to Vercel
+
+1. Push your project to GitHub
+2. Go to vercel.com → New Project → Import your repo
+3. Set Root Directory to: `frontend`
+4. Framework Preset: `Vite` (auto-detected)
+5. Add Environment Variable:
+   - Key: `VITE_API_URL`
+   - Value: `https://rcn16f04-5000.inc1.devtunnels.ms`
+6. Click Deploy
+7. After deploy, copy your Vercel URL (e.g. `https://your-app.vercel.app`)
+8. Update `backend/app.py` CORS origins to your Vercel URL
+9. Restart the backend
+
+### Running Backend (Port Forwarding)
+
+- Backend runs locally: `python app.py`
+- Port forwarded at: `https://rcn16f04-5000.inc1.devtunnels.ms`
+- Make sure port forwarding is active before using the app
+- MongoDB must be running locally or Atlas URI must be set in `.env`
+
+### Local Development
+
+- Backend: `cd backend && python app.py`
+- Frontend: `cd frontend && npm run dev`
+- Frontend dev calls backend at `http://localhost:5000` via `.env.development`
+
 ### Create Required Directories
 
 ```bash

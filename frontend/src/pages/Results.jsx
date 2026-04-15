@@ -143,7 +143,7 @@ export default function Results() {
         </div>
       </div>
       <div className="grid lg:grid-cols-2 gap-4">
-        <img src={`http://localhost:5000${session.annotated_image_url}`} alt="annotated" className="rounded-lg border bg-white" />
+        <img src={session.annotated_image_url} alt="annotated" className="rounded-lg border bg-white" />
         <div className="space-y-4">
           {lowConfidenceResults.length > 0 && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">

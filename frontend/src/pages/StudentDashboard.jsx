@@ -34,7 +34,7 @@ import {
 
 import TeacherSchedule from './TeacherSchedule'
 
-const API_BASE = 'http://localhost:5000'
+const API_BASE = import.meta.env.VITE_API_URL
 const TODAY_ISO = new Date().toISOString().slice(0, 10)
 
 export default function StudentDashboard() {
@@ -166,7 +166,9 @@ export default function StudentDashboard() {
   const canUploadMore = photoCount < 5;
 
   const photoUrl = student.photo_path
-    ? `${API_BASE}/static/${student.photo_path}`
+    ? student.photo_path.startsWith('http')
+      ? student.photo_path
+      : `${API_BASE}/static/${student.photo_path}`
     : null
 
   return (
