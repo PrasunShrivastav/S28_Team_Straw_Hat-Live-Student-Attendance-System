@@ -55,9 +55,18 @@ for folder in [UPLOAD_FOLDER, STUDENT_PHOTO_FOLDER]:
     os.makedirs(folder, exist_ok=True)
 
 app = Flask(__name__, static_url_path="/static", static_folder="static")
-# TODO: replace * with your Vercel URL after first deploy
-# e.g. origins=["https://your-app.vercel.app"]
-CORS(app, origins="*", supports_credentials=True)
+
+CORS(app, 
+     resources={r"/*": {"origins": "*"}},
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     supports_credentials=True)
+
+@app.before_request
+def handle_options():
+    if request.method == "OPTIONS":
+        response = app.make_default_options_response()
+        return response
 
 def full_url(path):
     base = os.environ.get("BACKEND_URL", "https://rcn16f04-5000.inc1.devtunnels.ms")
@@ -812,7 +821,38 @@ def list_sessions_for_month():
 
     try:
         _validate_month_value(month_value)
-        return jsonify(get_session_month(month_value)), 200
+        sessions_in_month = get_session_month(month_value)
+        
+        attendance_records = [
+            record for record in get_sessions()
+            if str(record.get("session_date") or record.get("date", "")).startswith(month_value)
+        ]
+
+        for occurrence in sessions_in_month:
+            occurrence_date = occurrence.get("date")
+            occurrence_subject = occurrence.get("subject")
+            occurrence_session_id = str(occurrence.get("session_id", ""))
+
+            matching_record = next(
+                (
+                    record for record in attendance_records
+                    if (record.get("session_date") or record.get("date")) == occurrence_date
+                    and (
+                        str(record.get("schedule_id", "")) == occurrence_session_id
+                        or record.get("subject") == occurrence_subject
+                    )
+                ),
+                None,
+            )
+
+            if matching_record:
+                occurrence["attendance_taken"] = True
+                occurrence["attendance_session_id"] = str(matching_record.get("session_id"))
+            else:
+                occurrence["attendance_taken"] = False
+                occurrence["attendance_session_id"] = None
+
+        return jsonify(sessions_in_month), 200
     except ValueError as exc:
         return jsonify({"success": False, "message": str(exc)}), 400
     except Exception as exc:

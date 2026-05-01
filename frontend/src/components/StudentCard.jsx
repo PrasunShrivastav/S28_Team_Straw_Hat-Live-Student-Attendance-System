@@ -1,25 +1,30 @@
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2 } from "lucide-react";
 
-const API_BASE = import.meta.env.VITE_API_URL
+const API_BASE = import.meta.env.VITE_API_URL;
 
 export default function StudentCard({ student, onDelete, onAddPhotos }) {
-  const photoCount = student.photo_count || 1
-  const badgeClass = photoCount >= 3 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+  const photoCount = student.photo_count || 1;
+  const badgeClass =
+    photoCount >= 3
+      ? "bg-green-100 text-green-700"
+      : "bg-amber-100 text-amber-700";
 
   return (
     <div className="bg-white rounded-xl shadow p-4 border border-slate-200">
       <div className="relative">
         <img
           src={
-            student.photo_path?.startsWith('http')
+            student.photo_path?.startsWith("http")
               ? student.photo_path
               : `${API_BASE}/static/${student.photo_path}`
           }
           alt={student.name}
           className="h-44 w-full object-cover rounded-lg"
         />
-        <span className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-semibold ${badgeClass}`}>
-          {photoCount} photo{photoCount > 1 ? 's' : ''}
+        <span
+          className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-semibold ${badgeClass}`}
+        >
+          {photoCount} photo{photoCount > 1 ? "s" : ""}
         </span>
       </div>
       <h3 className="mt-3 text-lg font-semibold">{student.name}</h3>
@@ -39,5 +44,5 @@ export default function StudentCard({ student, onDelete, onAddPhotos }) {
         </button>
       </div>
     </div>
-  )
+  );
 }

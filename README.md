@@ -106,36 +106,37 @@ The **Face Recognition Attendance Monitoring System** revolutionizes traditional
 
 ### Backend
 
-| Technology | Purpose | Version |
-|------------|---------|---------|
-| **Python** | Core language | 3.10+ |
-| **Flask** | Web framework | Latest |
-| **face_recognition** | Face detection & encoding | Latest |
-| **OpenCV (cv2)** | Image processing | Latest |
-| **pymongo** | MongoDB driver | Latest |
-| **Pillow (PIL)** | Image manipulation | Latest |
-| **flask-cors** | CORS handling | Latest |
-| **python-dotenv** | Environment variables | Latest |
+| Technology           | Purpose                   | Version |
+| -------------------- | ------------------------- | ------- |
+| **Python**           | Core language             | 3.10+   |
+| **Flask**            | Web framework             | Latest  |
+| **face_recognition** | Face detection & encoding | Latest  |
+| **OpenCV (cv2)**     | Image processing          | Latest  |
+| **pymongo**          | MongoDB driver            | Latest  |
+| **Pillow (PIL)**     | Image manipulation        | Latest  |
+| **flask-cors**       | CORS handling             | Latest  |
+| **python-dotenv**    | Environment variables     | Latest  |
 
 ### Frontend
 
-| Technology | Purpose | Version |
-|------------|---------|---------|
-| **React** | UI framework | 18.x |
-| **Vite** | Build tool | Latest |
-| **Tailwind CSS** | Styling | 3.x |
-| **React Router** | Navigation | 6.x |
-| **Axios** | HTTP client | Latest |
-| **React Hot Toast** | Notifications | Latest |
-| **Lucide React** | Icons | Latest |
+| Technology          | Purpose       | Version |
+| ------------------- | ------------- | ------- |
+| **React**           | UI framework  | 18.x    |
+| **Vite**            | Build tool    | Latest  |
+| **Tailwind CSS**    | Styling       | 3.x     |
+| **React Router**    | Navigation    | 6.x     |
+| **Axios**           | HTTP client   | Latest  |
+| **React Hot Toast** | Notifications | Latest  |
+| **Lucide React**    | Icons         | Latest  |
 
 ### Database
 
-| Technology | Purpose |
-|------------|---------|
+| Technology  | Purpose        |
+| ----------- | -------------- |
 | **MongoDB** | NoSQL database |
 
 **Collections:**
+
 - `students`: Stores student data and face encodings
 - `attendance_records`: Stores attendance session data
 
@@ -180,8 +181,9 @@ The **Face Recognition Attendance Monitoring System** revolutionizes traditional
 ### Data Flow
 
 1. **Student Registration:**
+
    ```
-   User uploads photo → Flask validates → face_recognition extracts encoding 
+   User uploads photo → Flask validates → face_recognition extracts encoding
    → MongoDB stores student data → Success response
    ```
 
@@ -249,28 +251,31 @@ Before you begin, ensure you have the following installed:
 
 ### Required Software
 
-| Software | Minimum Version | Purpose |
-|----------|----------------|---------|
-| **Python** | 3.10+ | Backend runtime |
-| **Node.js** | 18+ | Frontend development |
-| **npm** | 8+ | Package manager |
-| **MongoDB** | 4.4+ | Database |
-| **CMake** | 3.10+ | Build face_recognition dependencies |
-| **C++ Compiler** | - | Build dlib library |
+| Software         | Minimum Version | Purpose                             |
+| ---------------- | --------------- | ----------------------------------- |
+| **Python**       | 3.10+           | Backend runtime                     |
+| **Node.js**      | 18+             | Frontend development                |
+| **npm**          | 8+              | Package manager                     |
+| **MongoDB**      | 4.4+            | Database                            |
+| **CMake**        | 3.10+           | Build face_recognition dependencies |
+| **C++ Compiler** | -               | Build dlib library                  |
 
 ### Operating System Specific
 
 **Windows:**
+
 - Visual Studio Build Tools (for C++ compilation)
 - CMake (download from cmake.org)
 
 **macOS:**
+
 ```bash
 brew install cmake
 xcode-select --install
 ```
 
 **Linux (Ubuntu/Debian):**
+
 ```bash
 sudo apt-get update
 sudo apt-get install build-essential cmake
@@ -280,10 +285,12 @@ sudo apt-get install python3-dev
 ### MongoDB Setup
 
 **Option 1: Local Installation**
+
 - Download from [mongodb.com](https://www.mongodb.com/try/download/community)
 - Start MongoDB service
 
 **Option 2: MongoDB Atlas (Cloud)**
+
 - Create free cluster at [mongodb.com/atlas](https://www.mongodb.com/atlas)
 - Get connection URI
 
@@ -367,7 +374,7 @@ FLASK_DEBUG=True
 Edit `frontend/src/api/index.js`:
 
 ```javascript
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = "http://localhost:5000/api";
 ```
 
 ---
@@ -419,6 +426,7 @@ ls -la backend/static/
 ### Starting the Application
 
 **Terminal 1 - Backend:**
+
 ```bash
 cd backend
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
@@ -426,18 +434,21 @@ python app.py
 ```
 
 Expected output:
+
 ```
  * Running on http://127.0.0.1:5000
  * Debug mode: on
 ```
 
 **Terminal 2 - Frontend:**
+
 ```bash
 cd frontend
 npm run dev
 ```
 
 Expected output:
+
 ```
   VITE v5.x.x  ready in xxx ms
 
@@ -446,6 +457,7 @@ Expected output:
 ```
 
 **Access Application:**
+
 - Frontend: `http://localhost:5173`
 - Backend API: `http://localhost:5000`
 
@@ -466,6 +478,7 @@ Expected output:
 4. Success notification appears
 
 **Photo Requirements:**
+
 - Clear, well-lit face
 - Face looking at camera
 - No sunglasses or masks
@@ -473,6 +486,7 @@ Expected output:
 - Minimum resolution: 640x480px
 
 **Example:**
+
 ```
 Roll Number: CS101
 Name: John Doe
@@ -493,6 +507,7 @@ Photo: john_doe.jpg
 5. Review and confirm
 
 **Photo Tips:**
+
 - Good lighting
 - Clear faces (front-facing)
 - Minimum 800x600px resolution
@@ -512,6 +527,7 @@ Photo: john_doe.jpg
 3. File downloads automatically
 
 **CSV Format:**
+
 ```csv
 Roll Number,Name,Status,Timestamp
 CS101,John Doe,Present,2024-02-15 10:30:00
@@ -524,11 +540,13 @@ Unknown,Unknown Person,Unknown,2024-02-15 10:30:00
 ## 📡 API Documentation
 
 ### Base URL
+
 ```
 http://localhost:5000/api
 ```
 
 ### Authentication
+
 Currently no authentication required (add JWT in production).
 
 ### Endpoints
@@ -549,6 +567,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "exists": false,
@@ -572,6 +591,7 @@ photo: <file>
 ```
 
 **Response:**
+
 ```json
 {
   "message": "Student registered successfully",
@@ -585,6 +605,7 @@ photo: <file>
 ```
 
 **Error Codes:**
+
 - `400`: No photo uploaded / No face detected / Multiple faces
 - `409`: Roll number already exists
 - `500`: Server error
@@ -600,6 +621,7 @@ GET /api/students
 ```
 
 **Response:**
+
 ```json
 {
   "students": [
@@ -625,6 +647,7 @@ DELETE /api/students/:id
 ```
 
 **Response:**
+
 ```json
 {
   "message": "Student deleted successfully"
@@ -647,6 +670,7 @@ photo: <file>
 ```
 
 **Response:**
+
 ```json
 {
   "session_id": "ATT_20240215_103000",
@@ -685,6 +709,7 @@ GET /api/attendance/sessions
 ```
 
 **Response:**
+
 ```json
 {
   "sessions": [
@@ -713,6 +738,7 @@ GET /api/attendance/session/:session_id
 ```
 
 **Response:**
+
 ```json
 {
   "_id": "...",
@@ -735,6 +761,7 @@ GET /api/attendance/export/:session_id
 ```
 
 **Response:**
+
 ```csv
 Roll Number,Name,Status,Timestamp
 CS101,John Doe,Present,2024-02-15 10:30:00
@@ -742,6 +769,7 @@ CS102,Jane Smith,Absent,2024-02-15 10:30:00
 ```
 
 **Headers:**
+
 ```
 Content-Type: text/csv
 Content-Disposition: attachment; filename=attendance_ATT_20240215_103000.csv
@@ -752,15 +780,19 @@ Content-Disposition: attachment; filename=attendance_ATT_20240215_103000.csv
 ## 📸 Screenshots
 
 ### Student Registration
+
 ![Register Student](https://via.placeholder.com/800x400?text=Student+Registration+Page)
 
 ### Take Attendance
+
 ![Take Attendance](https://via.placeholder.com/800x400?text=Take+Attendance+Page)
 
 ### Attendance Results
+
 ![Results](https://via.placeholder.com/800x400?text=Attendance+Results)
 
 ### History & Export
+
 ![History](https://via.placeholder.com/800x400?text=Attendance+History)
 
 ---
@@ -776,6 +808,7 @@ Content-Disposition: attachment; filename=attendance_ATT_20240215_103000.csv
 **Solution:**
 
 **Windows:**
+
 ```bash
 # Install Visual Studio Build Tools
 # Download from: https://visualstudio.microsoft.com/downloads/
@@ -790,6 +823,7 @@ pip install face_recognition
 ```
 
 **macOS:**
+
 ```bash
 brew install cmake
 xcode-select --install
@@ -797,6 +831,7 @@ pip install face_recognition
 ```
 
 **Linux:**
+
 ```bash
 sudo apt-get install build-essential cmake
 sudo apt-get install python3-dev
@@ -812,15 +847,17 @@ pip install face_recognition
 **Solution:**
 
 1. **Check MongoDB is running:**
+
    ```bash
    # macOS/Linux
    sudo systemctl status mongod
-   
+
    # Windows (PowerShell as Admin)
    net start MongoDB
    ```
 
 2. **Verify connection URI in `.env`:**
+
    ```env
    MONGO_URI=mongodb://localhost:27017
    ```
@@ -841,11 +878,13 @@ pip install face_recognition
 **Solution:**
 
 1. **Verify `flask-cors` is installed:**
+
    ```bash
    pip install flask-cors
    ```
 
 2. **Check `app.py` has CORS enabled:**
+
    ```python
    from flask_cors import CORS
    app = Flask(__name__)
@@ -877,6 +916,7 @@ pip install face_recognition
 **Solution:**
 
 **Find and kill process:**
+
 ```bash
 # macOS/Linux
 lsof -ti:5000 | xargs kill -9
@@ -886,6 +926,7 @@ Get-Process -Id (Get-NetTCPConnection -LocalPort 5000).OwningProcess | Stop-Proc
 ```
 
 **Or change port in `app.py`:**
+
 ```python
 if __name__ == '__main__':
     app.run(debug=True, port=5001)  # Use different port
@@ -900,12 +941,14 @@ if __name__ == '__main__':
 **Solution:**
 
 1. **Check file paths in database:**
+
    ```python
    # Should be relative path
    photo_path: "static/student_photos/CS101.jpg"
    ```
 
 2. **Verify Flask serves static files:**
+
    ```python
    app = Flask(__name__, static_folder='static')
    ```
@@ -985,11 +1028,13 @@ Contributions are welcome! Here's how you can help:
 ### How to Contribute
 
 1. **Fork the repository**
+
    ```bash
    git clone https://github.com/CODERGURU26/face-recognition-attendance.git
    ```
 
 2. **Create a feature branch**
+
    ```bash
    git checkout -b feature/AmazingFeature
    ```
@@ -1000,6 +1045,7 @@ Contributions are welcome! Here's how you can help:
    - Update documentation
 
 4. **Test your changes**
+
    ```bash
    # Backend tests
    pytest
@@ -1009,11 +1055,13 @@ Contributions are welcome! Here's how you can help:
    ```
 
 5. **Commit your changes**
+
    ```bash
    git commit -m 'Add: Amazing new feature'
    ```
 
 6. **Push to branch**
+
    ```bash
    git push origin feature/AmazingFeature
    ```
@@ -1026,15 +1074,18 @@ Contributions are welcome! Here's how you can help:
 ### Development Guidelines
 
 **Code Style:**
+
 - Python: Follow PEP 8
 - JavaScript: Use ESLint configuration
 - Comments: Write clear, concise comments
 
 **Commit Messages:**
+
 - Use conventional commits
 - Examples: `Add:`, `Fix:`, `Update:`, `Remove:`
 
 **Testing:**
+
 - Add unit tests for new features
 - Ensure existing tests pass
 - Test on multiple browsers
@@ -1197,12 +1248,14 @@ SOFTWARE.
 ### System Requirements
 
 **Minimum:**
+
 - CPU: Dual-core 2.0 GHz
 - RAM: 4 GB
 - Storage: 5 GB free space
 - Internet: 10 Mbps
 
 **Recommended:**
+
 - CPU: Quad-core 3.0 GHz
 - RAM: 8 GB
 - Storage: 20 GB SSD
@@ -1210,15 +1263,16 @@ SOFTWARE.
 
 ### Processing Times
 
-| Operation | Average Time |
-|-----------|-------------|
-| Student Registration | 2-3 seconds |
-| Face Detection (single) | <1 second |
-| Face Detection (group) | 3-5 seconds |
-| Attendance Processing | 5-10 seconds |
-| CSV Export | <1 second |
+| Operation               | Average Time |
+| ----------------------- | ------------ |
+| Student Registration    | 2-3 seconds  |
+| Face Detection (single) | <1 second    |
+| Face Detection (group)  | 3-5 seconds  |
+| Attendance Processing   | 5-10 seconds |
+| CSV Export              | <1 second    |
 
 **Note:** Times vary based on:
+
 - Image resolution
 - Number of faces
 - Hardware specifications
@@ -1267,6 +1321,6 @@ A: Yes, completely open-source under MIT License.
 
 ---
 
-*Last Updated: April 2026*
+_Last Updated: April 2026_
 
 **Built with ❤️ for educational institutions and organizations worldwide**

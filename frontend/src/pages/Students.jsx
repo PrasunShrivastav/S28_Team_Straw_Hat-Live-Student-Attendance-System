@@ -77,7 +77,7 @@ export default function Students() {
 
     try {
       setSaving(true)
-      const res = await api.post(`/students/${selectedStudent.id}/add-photos`, formData)
+      const res = await api.post(`/api/students/${selectedStudent.id}/add-photos`, formData)
       toast.success(`Updated to ${res.data.photo_count} photos`)
       setModalOpen(false)
       loadStudents()
