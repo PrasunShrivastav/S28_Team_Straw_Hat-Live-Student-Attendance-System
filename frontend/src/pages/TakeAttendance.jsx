@@ -16,6 +16,7 @@ export default function TakeAttendance() {
   const [preview, setPreview] = useState('')
   const [loading, setLoading] = useState(false)
   const [todaySessions, setTodaySessions] = useState([])
+  const [allTodaySessions, setAllTodaySessions] = useState([])
   const [scheduleId, setScheduleId] = useState('')
   const today = formatLocalDate(new Date())
   const currentMonth = today.slice(0, 7)
@@ -23,8 +24,9 @@ export default function TakeAttendance() {
   useEffect(() => {
     getSessionsMonth(currentMonth)
       .then((res) => {
-        // Only include sessions that are for today and do NOT have attendance taken
-        const sessionsForToday = res.data.filter((session) => session.date === today && !session.attendance_taken)
+        const allSessions = res.data.filter((session) => session.date === today)
+        setAllTodaySessions(allSessions)
+        const sessionsForToday = allSessions.filter((session) => !session.attendance_taken)
         setTodaySessions(sessionsForToday)
       })
       .catch(err => toast.error('Failed to load schedules'))
@@ -60,22 +62,26 @@ export default function TakeAttendance() {
     <div className="space-y-4 max-w-2xl">
       <h1 className="text-2xl font-bold">Take Attendance</h1>
       
-      {todaySessions.length > 0 ? (
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-slate-700">Link Schedule (Optional)</label>
-          <select 
-            value={scheduleId} 
-            onChange={e => setScheduleId(e.target.value)}
-            className="w-full p-2 border rounded-lg bg-white"
-          >
-            <option value="">-- No Schedule --</option>
-            {todaySessions.map(s => (
-              <option key={s.id} value={s.id}>
-                {formatScheduleOption(s)}
-              </option>
-            ))}
-          </select>
-        </div>
+      {allTodaySessions.length > 0 ? (
+        todaySessions.length > 0 ? (
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-slate-700">Link Schedule (Optional)</label>
+            <select 
+              value={scheduleId} 
+              onChange={e => setScheduleId(e.target.value)}
+              className="w-full p-2 border rounded-lg bg-white"
+            >
+              <option value="">-- No Schedule --</option>
+              {todaySessions.map(s => (
+                <option key={s.id} value={s.id}>
+                  {formatScheduleOption(s)}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <p className="text-sm font-medium text-green-600">All sessions for today have attendance recorded</p>
+        )
       ) : (
         <p className="text-sm text-slate-500">No sessions scheduled for today</p>
       )}

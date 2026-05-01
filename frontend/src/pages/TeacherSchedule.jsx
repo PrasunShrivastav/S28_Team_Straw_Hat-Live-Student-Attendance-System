@@ -200,10 +200,11 @@ function buildCalendarDays(month) {
   return days;
 }
 
-export default function TeacherSchedule() {
+export default function TeacherSchedule({ roleOverride }) {
   const navigate = useNavigate();
   const auth = useMemo(() => getRoleContext(), []);
-  const isStudentView = auth.role === "student";
+  const isStudentView = roleOverride === "student" || auth.role === "student";
+  const studentId = auth.studentId || (isStudentView ? JSON.parse(localStorage.getItem('student') || '{}').id : null);
   const [sessions, setSessions] = useState([]);
   const [sessionStatuses, setSessionStatuses] = useState({});
   const [upcomingSessions, setUpcomingSessions] = useState([]);
@@ -221,10 +222,10 @@ export default function TeacherSchedule() {
   const fetchMonthView = async () => {
     try {
       const requests = [getSessionsMonth(month)];
-      if (isStudentView && auth.studentId) {
+      if (isStudentView && studentId) {
         requests.push(
           fetchJson(
-            `/api/attendance/student/${auth.studentId}/month?month=${month}`,
+            `/api/attendance/student/${studentId}/month?month=${month}`,
           ),
         );
         requests.push(fetchJson("/api/sessions/upcoming?limit=5"));
@@ -255,7 +256,7 @@ export default function TeacherSchedule() {
 
   useEffect(() => {
     fetchMonthView();
-  }, [month, isStudentView, auth.studentId]);
+  }, [month, isStudentView, studentId]);
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
@@ -524,13 +525,13 @@ export default function TeacherSchedule() {
           <div className="inline-flex flex-wrap items-center gap-4">
             <span className="inline-flex items-center gap-1">
               <span className="h-2.5 w-2.5 rounded-full bg-green-500" />{" "}
-              Attendance Taken
+              ✓ Attended
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="h-2.5 w-2.5 rounded-full bg-blue-500" /> Lecture
+              <span className="h-2.5 w-2.5 rounded-full bg-blue-500" /> ● Lecture
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Lab
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> ● Lab
             </span>
           </div>
         )}
@@ -598,11 +599,11 @@ export default function TeacherSchedule() {
                           isStudentView
                             ? getStudentStatusStyles(session.studentStatus)
                             : session.attendance_taken
-                              ? "bg-green-100 text-green-700"
+                              ? "bg-green-100 text-green-700 border border-green-300"
                               : getTeacherTypeStyles(session.type)
                         }`}
                       >
-                        {session.subject}
+                        {!isStudentView && session.attendance_taken ? `✓ ${session.subject}` : session.subject}
                       </button>
                     ))}
 
@@ -685,12 +686,17 @@ export default function TeacherSchedule() {
                                 {session.subject}
                                 {!isStudentView && session.attendance_taken && (
                                   <span className="inline-flex rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">
-                                    ✓ Taken
+                                    Attendance taken ✓
                                   </span>
                                 )}
                               </p>
                               <p className="mt-1 text-xs text-slate-500">
                                 {session.type}
+                                {!isStudentView && session.attendance_taken && (
+                                  <span className="ml-2 font-medium text-indigo-600 hover:text-indigo-800">
+                                    View Report →
+                                  </span>
+                                )}
                               </p>
                             </button>
 

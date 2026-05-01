@@ -367,7 +367,7 @@ export default function StudentDashboard() {
         <div className="min-h-[400px]">
           {activeTab === "schedule" && (
             <div className="-mx-4 sm:mx-0">
-              <TeacherSchedule />
+              <TeacherSchedule roleOverride="student" />
             </div>
           )}
 
